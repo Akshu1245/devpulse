@@ -26,6 +26,8 @@ from services.db_config import (
 from models.tables import (
     User, ApiKey, BudgetLog, CodeHistory, UsageStat,
     ApiResponse, ChangeAlert, SecurityScan,
+    AiSecurityScan, ThreatEvent,
+    ApiCallLog, CostBudget,
     Incident, IncidentEvent,
     AlertConfig, AlertHistory, KillSwitch,
     Team, TeamMember,
@@ -1343,6 +1345,302 @@ async def delete_custom_api(api_id: int, user_id: int) -> bool:
             update(CustomApi)
             .where(and_(CustomApi.id == api_id, CustomApi.user_id == user_id))
             .values(is_active=False)
+        )
+        result = await session.execute(stmt)
+        await session.commit()
+        return result.rowcount > 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# API CALL LOGS (Cost Intelligence — Pillar 2)
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def save_api_call_log(
+    user_id: int,
+    provider: str,
+    model: str,
+    endpoint: str,
+    tokens_input: int,
+    tokens_output: int,
+    cost_usd: float,
+    latency_ms: float = 0,
+    status_code: int = 200,
+    cached: bool = False,
+    api_key_id: Optional[int] = None,
+) -> int:
+    """Persist a single API call log to the database."""
+    async with AsyncSessionLocal() as session:
+        obj = ApiCallLog(
+            user_id=user_id,
+            api_key_id=api_key_id,
+            provider=provider,
+            model=model,
+            endpoint=endpoint,
+            tokens_input=tokens_input,
+            tokens_output=tokens_output,
+            cost_usd=cost_usd,
+            latency_ms=latency_ms,
+            status_code=status_code,
+            cached=cached,
+        )
+        session.add(obj)
+        await session.commit()
+        await session.refresh(obj)
+        return obj.id
+
+
+async def get_api_call_logs(
+    user_id: int,
+    days: int = 30,
+    limit: int = 10000,
+) -> List[Dict[str, Any]]:
+    """Retrieve API call logs for a user within the last N days."""
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(ApiCallLog)
+            .where(and_(
+                ApiCallLog.user_id == user_id,
+                ApiCallLog.created_at >= cutoff,
+            ))
+            .order_by(desc(ApiCallLog.created_at))
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return [_row_to_dict(r) for r in result.scalars().all()]
+
+
+async def get_api_call_daily_costs(
+    user_id: int,
+    days: int = 30,
+) -> Dict[str, float]:
+    """Get daily aggregated costs for a user."""
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(
+                func.date(ApiCallLog.created_at).label("day"),
+                func.sum(ApiCallLog.cost_usd).label("total"),
+            )
+            .where(and_(
+                ApiCallLog.user_id == user_id,
+                ApiCallLog.created_at >= cutoff,
+            ))
+            .group_by(func.date(ApiCallLog.created_at))
+            .order_by(func.date(ApiCallLog.created_at))
+        )
+        result = await session.execute(stmt)
+        return {str(row.day): round(float(row.total or 0), 4) for row in result}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COST BUDGETS
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def save_cost_budget(
+    user_id: int,
+    name: str,
+    provider: str,
+    monthly_limit_usd: float,
+    alert_threshold_pct: float = 80,
+    auto_kill: bool = False,
+) -> Dict[str, Any]:
+    """Create a cost budget for a user."""
+    async with AsyncSessionLocal() as session:
+        obj = CostBudget(
+            user_id=user_id,
+            name=name,
+            provider=provider,
+            monthly_limit_usd=monthly_limit_usd,
+            alert_threshold_pct=alert_threshold_pct,
+            auto_kill=auto_kill,
+        )
+        session.add(obj)
+        await session.commit()
+        await session.refresh(obj)
+        return _row_to_dict(obj)
+
+
+async def get_cost_budgets(user_id: int) -> List[Dict[str, Any]]:
+    """List all cost budgets for a user with current spend calculated from DB."""
+    from datetime import timedelta as td
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(CostBudget)
+            .where(CostBudget.user_id == user_id)
+            .order_by(desc(CostBudget.created_at))
+        )
+        result = await session.execute(stmt)
+        budgets = []
+        for b in result.scalars().all():
+            d = _row_to_dict(b)
+            # Calculate current spend from api_call_logs in the budget's period
+            period_start = b.period_start or (now - td(days=30))
+            conditions = [
+                ApiCallLog.user_id == user_id,
+                ApiCallLog.created_at >= period_start,
+            ]
+            if b.provider:
+                conditions.append(ApiCallLog.provider == b.provider)
+            spend_stmt = (
+                select(func.coalesce(func.sum(ApiCallLog.cost_usd), 0))
+                .where(and_(*conditions))
+            )
+            spend_result = await session.execute(spend_stmt)
+            current_spend = float(spend_result.scalar() or 0)
+            d["current_spend_usd"] = round(current_spend, 4)
+            d["usage_pct"] = round(
+                (current_spend / b.monthly_limit_usd * 100)
+                if b.monthly_limit_usd > 0 else 0,
+                1,
+            )
+            d["status"] = (
+                "exceeded" if d["usage_pct"] >= 100 else
+                "warning" if d["usage_pct"] >= (b.alert_threshold_pct or 80) else
+                "active"
+            )
+            budgets.append(d)
+        return budgets
+
+
+async def delete_cost_budget(budget_id: int, user_id: int) -> bool:
+    """Delete a cost budget."""
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            delete(CostBudget)
+            .where(and_(CostBudget.id == budget_id, CostBudget.user_id == user_id))
+        )
+        result = await session.execute(stmt)
+        await session.commit()
+        return result.rowcount > 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# AI SECURITY SCAN HISTORY  (score-history from real data)
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def save_ai_security_scan(
+    user_id: int,
+    scan_type: str,
+    target: str,
+    score: int,
+    grade: str,
+    threats_found: int,
+    critical_count: int = 0,
+    high_count: int = 0,
+    medium_count: int = 0,
+    low_count: int = 0,
+    results_json: Optional[dict] = None,
+    fix_suggestions_json: Optional[list] = None,
+    owasp_results_json: Optional[dict] = None,
+) -> int:
+    """Persist an AI security scan result."""
+    async with AsyncSessionLocal() as session:
+        obj = AiSecurityScan(
+            user_id=user_id,
+            scan_type=scan_type,
+            target=target[:500] if target else "",
+            score=score,
+            grade=grade,
+            threats_found=threats_found,
+            critical_count=critical_count,
+            high_count=high_count,
+            medium_count=medium_count,
+            low_count=low_count,
+            results_json=results_json or {},
+            fix_suggestions_json=fix_suggestions_json or [],
+            owasp_results_json=owasp_results_json or {},
+        )
+        session.add(obj)
+        await session.commit()
+        await session.refresh(obj)
+        return obj.id
+
+
+async def get_ai_security_score_history(
+    user_id: int,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    """Get security scan score history for a user from real DB data."""
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(AiSecurityScan)
+            .where(AiSecurityScan.user_id == user_id)
+            .order_by(desc(AiSecurityScan.created_at))
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        history = []
+        for scan in result.scalars().all():
+            history.append({
+                "scan_id": scan.id,
+                "score": scan.score,
+                "grade": scan.grade,
+                "threats_found": scan.threats_found,
+                "scan_type": scan.scan_type,
+                "scanned_at": scan.created_at.isoformat() if scan.created_at else None,
+            })
+        return history
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# THREAT EVENTS (real DB-backed threat feed)
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def save_threat_event(
+    threat_type: str,
+    severity: str,
+    source: str,
+    description: str,
+    api_endpoint: str = "",
+    user_id: Optional[int] = None,
+) -> int:
+    """Save a threat event to the database."""
+    async with AsyncSessionLocal() as session:
+        obj = ThreatEvent(
+            user_id=user_id,
+            threat_type=threat_type,
+            severity=severity,
+            source=source,
+            description=description,
+            api_endpoint=api_endpoint,
+        )
+        session.add(obj)
+        await session.commit()
+        await session.refresh(obj)
+        return obj.id
+
+
+async def get_threat_events_db(
+    limit: int = 50,
+    severity: Optional[str] = None,
+    unresolved_only: bool = False,
+) -> List[Dict[str, Any]]:
+    """Get threat events from the database."""
+    async with AsyncSessionLocal() as session:
+        stmt = select(ThreatEvent)
+        conditions = []
+        if severity:
+            conditions.append(ThreatEvent.severity == severity)
+        if unresolved_only:
+            conditions.append(ThreatEvent.resolved == False)  # noqa: E712
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+        stmt = stmt.order_by(desc(ThreatEvent.created_at)).limit(limit)
+        result = await session.execute(stmt)
+        return [_row_to_dict(r) for r in result.scalars().all()]
+
+
+async def resolve_threat_event(threat_id: int) -> bool:
+    """Mark a threat event as resolved."""
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            update(ThreatEvent)
+            .where(ThreatEvent.id == threat_id)
+            .values(resolved=True, resolved_at=datetime.now(timezone.utc))
         )
         result = await session.execute(stmt)
         await session.commit()

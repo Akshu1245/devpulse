@@ -143,9 +143,11 @@ def forecast_costs(daily_costs: Dict[str, float], days_ahead: int = 30) -> Dict[
             "method": "weighted_moving_average",
             "days_ahead": days_ahead,
             "predicted_total_usd": 0,
+            "predicted_daily_avg_usd": 0,
             "daily_predictions": [],
             "confidence": 0,
             "trend": "insufficient_data",
+            "current_daily_avg_usd": 0,
         }
 
     sorted_days = sorted(daily_costs.items())

@@ -1,6 +1,19 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const UI_ONLY_MODE = (process.env.NEXT_PUBLIC_UI_ONLY || 'false').toLowerCase() === 'true';
 
+// Track backend connectivity state
+let _backendOnline = true;
+let _lastConnectCheck = 0;
+const CONNECT_CHECK_INTERVAL = 10_000; // re-check every 10s after failure
+
+export function isBackendOnline(): boolean {
+  return _backendOnline;
+}
+
+export function getBackendStatus(): { online: boolean; lastCheck: number } {
+  return { online: _backendOnline, lastCheck: _lastConnectCheck };
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -430,19 +443,35 @@ class APIClient {
           ...(init?.headers || {}),
         },
       });
+      // Backend responded — mark as online
+      _backendOnline = true;
+      _lastConnectCheck = Date.now();
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (errorData?.error) {
           throw new Error(errorData.error);
         }
-        return fallback();
+        // Non-ok HTTP response (4xx/5xx) — throw, don't silently fall back
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
       return await response.json() as T;
     } catch (err) {
-      if (err instanceof Error && err.message && !err.message.includes('fetch')) {
-        throw err;
+      const isNetworkError = err instanceof TypeError ||
+        (err instanceof Error && (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('ECONNREFUSED')));
+
+      if (isNetworkError) {
+        // Backend is truly unreachable
+        _backendOnline = false;
+        _lastConnectCheck = Date.now();
+        console.warn(`[DevPulse] Backend offline — ${path}`);
+        // Return fallback for network errors so UI doesn't crash,
+        // but the offline banner will show
+        return fallback();
       }
-      return fallback();
+
+      // Re-throw application errors (auth failures, validation errors, etc.)
+      throw err;
     }
   }
 
