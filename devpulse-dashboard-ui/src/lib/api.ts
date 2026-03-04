@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '' : 'http://localhost:8000');
 const UI_ONLY_MODE = (process.env.NEXT_PUBLIC_UI_ONLY || 'false').toLowerCase() === 'true';
 
 // Track backend connectivity state

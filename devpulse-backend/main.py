@@ -189,14 +189,26 @@ app.add_middleware(InputSanitizationMiddleware)
 # Rate limiting middleware (per-user sliding window)
 app.add_middleware(RateLimitMiddleware)
 
+# Build the list of allowed origins
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    os.getenv("FRONTEND_URL", "http://localhost:3000"),
+]
+
+# Add Vercel preview/production URLs when running on Vercel
+vercel_url = os.getenv("VERCEL_URL")
+if vercel_url:
+    allowed_origins.append(f"https://{vercel_url}")
+
+vercel_project_url = os.getenv("VERCEL_PROJECT_PRODUCTION_URL")
+if vercel_project_url:
+    allowed_origins.append(f"https://{vercel_project_url}")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        os.getenv("FRONTEND_URL", "http://localhost:3000"),
-    ] if os.getenv("ENV") == "production" else ["*"],
+    allow_origins=allowed_origins if os.getenv("ENV") == "production" else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
