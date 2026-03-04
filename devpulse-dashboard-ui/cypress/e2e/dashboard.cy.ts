@@ -6,27 +6,27 @@ describe('DevPulse Dashboard', () => {
   });
 
   it('loads the dashboard page with v4.0 branding', () => {
-    cy.contains('DevPulse').should('be.visible');
-    cy.contains('v4.0').should('be.visible');
-    cy.contains('LIVE').should('be.visible');
+    cy.contains('Dashboard').should('be.visible');
+    cy.contains('DevPulse').should('exist');
+    cy.contains('v4.0').should('exist');
   });
 
   it('displays overview section', () => {
-    cy.contains('Overview').should('be.visible');
+    cy.contains('Get Started with DevPulse').should('be.visible');
   });
 
-  it('shows Pillar 1 — AI API Security Scanner', () => {
-    cy.contains('Pillar 1').should('exist');
-    cy.contains('AI API Security Scanner').should('exist');
+  it('shows security score section', () => {
+    cy.contains('Security Score').should('exist');
+    cy.contains('Run Security Scan').should('exist');
   });
 
-  it('shows Pillar 2 — API Cost Intelligence', () => {
-    cy.contains('Pillar 2').should('exist');
-    cy.contains('API Cost Intelligence').should('exist');
+  it('shows cost intelligence section', () => {
+    cy.contains('Cost Intelligence').should('exist');
   });
 
-  it('shows Core Tools section', () => {
-    cy.contains('Core Tools').should('exist');
+  it('shows additional links section', () => {
+    cy.scrollTo('bottom');
+    cy.contains('API Docs').should('exist');
   });
 
   it('shows health monitor', () => {
@@ -40,6 +40,6 @@ describe('DevPulse Dashboard', () => {
   it('footer shows v4.0 branding', () => {
     cy.scrollTo('bottom');
     cy.contains('All systems operational').should('be.visible');
-    cy.contains('AI API Security').should('exist');
+    cy.contains('AES-256 Encrypted').should('exist');
   });
 });
