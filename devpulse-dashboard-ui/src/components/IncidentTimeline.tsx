@@ -26,7 +26,18 @@ export default function IncidentTimeline() {
     setLoading(false);
   }, [filter]);
 
-  useEffect(() => { fetchData(); const i = setInterval(fetchData, 30000); return () => clearInterval(i); }, [fetchData]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchData();
+    }, 0);
+    const intervalId = setInterval(() => {
+      void fetchData();
+    }, 30000);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [fetchData]);
 
   const handleCreate = async () => {
     if (!newInc.api_name || !newInc.title) return;

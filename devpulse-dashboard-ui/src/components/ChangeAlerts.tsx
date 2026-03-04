@@ -18,7 +18,18 @@ export default function ChangeAlerts() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAlerts(); const i = setInterval(fetchAlerts, 30000); return () => clearInterval(i); }, [fetchAlerts]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchAlerts();
+    }, 0);
+    const intervalId = setInterval(() => {
+      void fetchAlerts();
+    }, 30000);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [fetchAlerts]);
 
   const handleAck = async (id: string) => {
     await apiClient.ackChangeAlert(id);

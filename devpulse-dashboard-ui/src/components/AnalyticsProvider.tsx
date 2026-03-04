@@ -12,7 +12,6 @@ export default function AnalyticsProvider({ children }: { children: React.ReactN
     // PostHog
     const phKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     if (phKey) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       import(/* webpackIgnore: true */ 'posthog-js' as string)
         .then((mod: { default: { init: (key: string, opts: Record<string, unknown>) => void } }) => {
           mod.default.init(phKey, {

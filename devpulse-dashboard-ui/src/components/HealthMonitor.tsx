@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { apiClient, HealthStatus } from '@/lib/api';
 import { Card, CardHeader, CardSkeleton } from '@/components/ui/Card';
-import { Badge, EmptyState } from '@/components/ui/Shared';
+import { EmptyState } from '@/components/ui/Shared';
 import { Button, IconButton } from '@/components/ui/Button';
 
 export default function HealthMonitor() {

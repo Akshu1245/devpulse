@@ -89,16 +89,6 @@ export default function CodeGenerator() {
     URL.revokeObjectURL(url);
   };
 
-  const gradeColor = (grade: string) => {
-    switch (grade) {
-      case 'A': return 'text-emerald-400 bg-emerald-500/20';
-      case 'B': return 'text-blue-400 bg-blue-500/20';
-      case 'C': return 'text-yellow-400 bg-yellow-500/20';
-      case 'D': return 'text-orange-400 bg-orange-500/20';
-      default: return 'text-red-400 bg-red-500/20';
-    }
-  };
-
   const highlightedCode = useMemo(() => {
     if (!result?.code) return '';
     return highlightCode(result.code, result.language || language);

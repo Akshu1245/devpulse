@@ -50,7 +50,3 @@ describe('DevPulse Landing Page', () => {
     cy.contains('API Security & Cost Intelligence Platform').should('exist');
   });
 });
-    cy.contains('Get Started Free').should('exist');
-    cy.contains('View on GitHub').should('exist');
-  });
-});

@@ -29,7 +29,12 @@ export default function AlertManager() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [fetchData]);
 
   const handleCreate = async () => {
     if (!newAlert.name) return;

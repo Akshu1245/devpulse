@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/Shared';
 
 interface Step {
   id: string;
@@ -14,30 +13,32 @@ interface Step {
 }
 
 export default function OnboardingChecklist() {
-  const [steps, setSteps] = useState<Step[]>([
-    { id: 'scan', label: 'Run your first security scan', description: 'Paste code into the AI Security Scanner', completed: false, action: 'security' },
-    { id: 'costs', label: 'View cost dashboard', description: 'See your API spending breakdown', completed: false, action: 'costs' },
-    { id: 'budget', label: 'Set a budget alert', description: 'Create a spending limit to avoid surprise bills', completed: false, action: 'budget' },
-    { id: 'apikey', label: 'Add an API key', description: 'Connect your first AI provider', completed: false, action: 'keys' },
-    { id: 'vscode', label: 'Install VS Code extension', description: 'Get inline security scanning in your editor', completed: false, action: 'vscode' },
-  ]);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('onboarding_steps');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSteps((prev) => prev.map(s => ({
-          ...s,
-          completed: parsed.includes(s.id),
-        })));
-      } catch { /* ignore */ }
+  const [steps, setSteps] = useState<Step[]>(() => {
+    const defaults: Step[] = [
+      { id: 'scan', label: 'Run your first security scan', description: 'Paste code into the AI Security Scanner', completed: false, action: 'security' },
+      { id: 'costs', label: 'View cost dashboard', description: 'See your API spending breakdown', completed: false, action: 'costs' },
+      { id: 'budget', label: 'Set a budget alert', description: 'Create a spending limit to avoid surprise bills', completed: false, action: 'budget' },
+      { id: 'apikey', label: 'Add an API key', description: 'Connect your first AI provider', completed: false, action: 'keys' },
+      { id: 'vscode', label: 'Install VS Code extension', description: 'Get inline security scanning in your editor', completed: false, action: 'vscode' },
+    ];
+    if (typeof window === 'undefined') return defaults;
+    try {
+      const saved = localStorage.getItem('onboarding_steps');
+      if (!saved) return defaults;
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return defaults;
+      return defaults.map((step) => ({
+        ...step,
+        completed: parsed.includes(step.id),
+      }));
+    } catch {
+      return defaults;
     }
-    if (localStorage.getItem('onboarding_dismissed') === 'true') {
-      setDismissed(true);
-    }
-  }, []);
+  });
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('onboarding_dismissed') === 'true';
+  });
 
   const completeStep = (id: string) => {
     setSteps((prev) => {

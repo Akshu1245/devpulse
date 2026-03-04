@@ -27,7 +27,12 @@ export default function Marketplace() {
     setLoading(false);
   }, [search, category, language]);
 
-  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchTemplates();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [fetchTemplates]);
 
   const handleInstall = async (id: string) => {
     setInstalling(id);

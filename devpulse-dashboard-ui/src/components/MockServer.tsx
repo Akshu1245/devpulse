@@ -31,7 +31,12 @@ export default function MockServer() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchAll();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [fetchAll]);
 
   const handleSelectApi = async (name: string) => {
     setSelectedApi(name);

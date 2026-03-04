@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Shared';
 import { Button } from '@/components/ui/Button';
 
 export default function CICDPanel() {

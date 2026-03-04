@@ -26,7 +26,12 @@ export default function AnalyticsDashboard() {
     setLoading(false);
   }, [days]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [fetchData]);
 
   const insightBorder = (s: string) => {
     const map: Record<string, string> = { critical: 'border-red-500/40 bg-red-500/5', warning: 'border-amber-500/40 bg-amber-500/5', info: 'border-blue-500/40 bg-blue-500/5' };

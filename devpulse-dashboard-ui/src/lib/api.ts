@@ -4,7 +4,6 @@ const UI_ONLY_MODE = (process.env.NEXT_PUBLIC_UI_ONLY || 'false').toLowerCase() 
 // Track backend connectivity state
 let _backendOnline = true;
 let _lastConnectCheck = 0;
-const CONNECT_CHECK_INTERVAL = 10_000; // re-check every 10s after failure
 
 export function isBackendOnline(): boolean {
   return _backendOnline;
