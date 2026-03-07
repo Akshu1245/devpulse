@@ -4,7 +4,7 @@
   "installCommand": "npm install",
   "functions": {
     "api/**/*.py": {
-      "runtime": "@vercel/python@4.5.0",
+      "runtime": "@vercel/python@4.4.1",
       "maxDuration": 30
     }
   },
