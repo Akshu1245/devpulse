@@ -2,9 +2,8 @@
 # ASGI adapter for serverless (Vercel/AWS Lambda)
 mangum>=0.17.0,<1.0.0
 
-# FastAPI and server
+# FastAPI and core
 fastapi>=0.111.0,<1.0.0
-uvicorn>=0.30.1,<1.0.0
 httpx>=0.27.0,<1.0.0
 pydantic>=2.7.1,<3.0.0
 python-dotenv>=1.0.1,<2.0.0
@@ -13,19 +12,15 @@ pyjwt>=2.8.0,<3.0.0
 bcrypt>=4.1.0,<5.0.0
 pyyaml>=6.0,<7.0
 
-# PostgreSQL + SQLAlchemy
-# Use a serverless-compatible connection pooling service (e.g., Neon, Supabase, PgBouncer)
+# PostgreSQL + SQLAlchemy (use managed DB with connection pooling e.g. Neon/Supabase)
 asyncpg>=0.29.0,<1.0.0
 sqlalchemy[asyncio]>=2.0.30,<3.0.0
-alembic>=1.13.0,<2.0.0
 
-# SQLite fallback (used when DATABASE_URL is not set)
+# SQLite fallback (when DATABASE_URL is not set)
 aiosqlite>=0.19.0,<1.0.0
 
-# Redis caching
-# Use a managed service such as Upstash Redis and set REDIS_URL accordingly
+# Redis caching (use Upstash Redis; in-memory fallback if REDIS_URL not set)
 redis>=5.0.0,<8.0.0
-hiredis>=3.0.0,<4.0.0
 
 # Billing
 stripe>=8.0.0,<10.0.0
