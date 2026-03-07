@@ -7,8 +7,6 @@
 /devpulse-backend/requirements.txt
 
 # Python
-__pycache__
-*.py[cod]
 *.egg-info
 .pytest_cache
 .coverage
