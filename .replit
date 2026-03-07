@@ -40,5 +40,5 @@ externalPort = 8000
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd devpulse-backend && PORT=8000 python main.py & sleep 2 && cd devpulse-dashboard-ui && PORT=5000 npm run start"]
+run = ["bash", "-c", "cd devpulse-backend && python main.py & cd devpulse-dashboard-ui && npm run start"]
 build = ["bash", "-c", "cd devpulse-dashboard-ui && npm install && npm run build"]
