@@ -355,7 +355,7 @@ if __name__ == "__main__":
     import uvicorn
     
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8000"))
+    port = int(os.getenv("BACKEND_PORT", "8000"))
     env = os.getenv("ENV", "development")
     log_level = os.getenv("LOG_LEVEL", "info").lower()
     
